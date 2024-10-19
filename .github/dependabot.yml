@@ -14,5 +14,5 @@ updates:
       day: "saturday"
       # Check when starting the updates
       time: "04:00"
-    # Disable all pull requests for Docker dependencies
-    open-pull-requests-limit: 0
+    # Enable a limit for pull requests for Docker dependencies
+    open-pull-requests-limit: 5
