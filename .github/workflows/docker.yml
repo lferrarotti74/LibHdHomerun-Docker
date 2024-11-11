@@ -4,6 +4,9 @@ on:
   pull_request:
     branches:
       - dev
+    branches-ignore:
+      - main
+      - dependabot/*
 
 env:
   REGISTRY: docker.io
@@ -14,9 +17,9 @@ env:
 
 jobs:
   build:
+    if: github.actor!= 'dependabot[bot]'   # ignore the pull request which comes from user dependabot.
 
     runs-on: ubuntu-latest
-    if: ${{ github.event.commits[0].author.name != 'dependabot[bot]' }}
     permissions:
       contents: read
       packages: write
