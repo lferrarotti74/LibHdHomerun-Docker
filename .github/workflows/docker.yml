@@ -1,13 +1,9 @@
 name: Docker
 
 on:
-  push:
-    tags: [ "*" ]
-    branches:
-      - 'main'
   pull_request:
     branches:
-      - 'dev'
+      - dev
 
 env:
   REGISTRY: docker.io
