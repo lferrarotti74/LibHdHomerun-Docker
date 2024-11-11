@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - dev
+
 env:
   REGISTRY: docker.io
   IMAGE_NAME: ${{ github.repository }}
@@ -56,7 +57,7 @@ jobs:
       # Build and push Docker image with Buildx (don't push on PR)
       - name: Build and push Docker image
         id: build-and-push
-        uses: docker/build-push-action@v4.0.0
+        uses: docker/build-push-action@v6.9.0
         with:
           context: .
           push: false
