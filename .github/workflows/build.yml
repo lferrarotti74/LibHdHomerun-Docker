@@ -47,7 +47,7 @@ jobs:
           driver: cloud
           endpoint: "lferrarotti74/bugbuster-builder"
       - name: Build and push x86 & ARM64 images
-        uses: docker/build-push-action@v6.13.0
+        uses: docker/build-push-action@v6.14.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
