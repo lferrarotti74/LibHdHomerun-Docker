@@ -56,6 +56,13 @@ jobs:
             type=edge,branch=$repo.default_branch
             type=semver,pattern=v{{version}}
             type=sha,prefix=,suffix=,format=short
+      
+      # set lower case image name
+      - name: set lower case owner name
+        run: |
+          echo "IMAGE_LC=${IMAGE,,}" >>${GITHUB_ENV}
+        env:
+          IMAGE: '${{ github.repository }}'
 
       # Build and push Docker image with Buildx (don't push on PR)
       - name: Build and push Docker image
@@ -67,8 +74,10 @@ jobs:
           load: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # cache-from: type=gha
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache
+          # cache-to: type=gha,mode=max
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_LC }}:buildcache,mode=max
 
       - name: Docker Scout
         id: docker-scout
