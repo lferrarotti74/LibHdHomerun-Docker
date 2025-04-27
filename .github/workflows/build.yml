@@ -194,6 +194,12 @@ jobs:
       #    docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:latest \
       #      $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
       
+      - name: Create manifest list and push to Docker Hub
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:latest \
+            $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
+
       - name: Create manifest list and push to GHCR
         working-directory: /tmp/digests
         run: |
