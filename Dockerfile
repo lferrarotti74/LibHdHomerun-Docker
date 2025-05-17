@@ -1,10 +1,10 @@
-FROM ubuntu:25.04 AS stage
+FROM ubuntu:25.10 AS stage
 
 RUN apt update && apt-get upgrade -y && apt install build-essential git -y && rm -rf /var/lib/apt/lists/* \
 && git clone https://github.com/Silicondust/libhdhomerun.git \
 && cd libhdhomerun && make -j$(nproc)
 
-FROM ubuntu:25.04
+FROM ubuntu:25.10
 
 LABEL org.opencontainers.image.title="LibHdHomerun-Docker"
 LABEL org.opencontainers.image.version="latest"
