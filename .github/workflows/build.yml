@@ -28,6 +28,8 @@ on:
     paths-ignore:
       - 'README.md'
       - 'LICENSE'
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 env:
   REGISTRY_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/libhdhomerun-docker
@@ -40,6 +42,25 @@ jobs:
       - name: Print the purpose of run
         run: |
           echo "Purpose of Run: ${{ inputs.tags }}"
+
+  # SonarQube Analysis Job
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
+      
+      - name: SonarQube Scan
+        uses: SonarSource/sonarqube-scan-action@v5
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.projectKey=lferrarotti74_LibHdHomerun-Docker
+            -Dsonar.organization=lferrarotti74
         
   build:
     runs-on: ubuntu-latest
@@ -187,13 +208,7 @@ jobs:
           images: | 
             ${{ env.REGISTRY_IMAGE }}
             ${{ env.GHCR_IMAGE }}
-          
-      #- name: Create manifest list and push
-      #  working-directory: /tmp/digests
-      #  run: |
-      #    docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:latest \
-      #      $(printf '${{ env.REGISTRY_IMAGE }}@sha256:%s ' *)
-      
+       
       - name: Create manifest list and push to Docker Hub
         working-directory: /tmp/digests
         run: |
