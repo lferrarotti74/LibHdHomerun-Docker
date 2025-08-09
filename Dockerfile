@@ -1,8 +1,10 @@
 FROM ubuntu:25.10 AS stage
 
-RUN apt update && apt-get upgrade -y && apt --no-install-recommends install -y build-essential git && rm -rf /var/lib/apt/lists/* \
-&& git clone https://github.com/Silicondust/libhdhomerun.git \
-&& cd libhdhomerun && make -j$(nproc)
+RUN apt update && apt-get upgrade -y \
+    && apt --no-install-recommends install -y build-essential git \
+    && rm -rf /var/lib/apt/lists/* \
+    && git clone https://github.com/Silicondust/libhdhomerun.git \
+    && cd libhdhomerun && make -j$(nproc)
 
 FROM ubuntu:25.10
 
