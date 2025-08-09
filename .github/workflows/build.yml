@@ -35,7 +35,7 @@ on:
       - 'LICENSE'
   pull_request:
     types: [opened, synchronize, reopened]
-  # NEW: Schedule for checking Alpine Linux updates
+  # NEW: Schedule for checking Ubuntu updates
   schedule:
     - cron: '0 6 * * *'  # Daily at 6 AM UTC
 
@@ -44,74 +44,74 @@ env:
   GHCR_IMAGE: ghcr.io/${{ github.repository_owner }}/libhdhomerun-docker
 
 jobs:
-  # NEW: Check if base image (Alpine) has been updated
+  # NEW: Check if base image (Ubuntu) has been updated
   check-base-image:
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check-image.outputs.should_build || steps.default.outputs.should_build }}
       update_reason: ${{ steps.check-image.outputs.update_reason || steps.default.outputs.update_reason }}
-      alpine_digest: ${{ steps.check-image.outputs.digest || steps.default.outputs.digest }}
+      ubuntu_digest: ${{ steps.check-image.outputs.digest || steps.default.outputs.digest }}
     steps:
-      - name: Check Alpine Linux updates
+      - name: Check Ubuntu updates
         id: check-image
         if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_build == 'false')
         run: |
-          echo "🔍 Checking Alpine Linux for updates..."
+          echo "🔍 Checking Ubuntu for updates..."
           
           # Get current digest from Docker Hub using a more reliable method
-          echo "Pulling latest Alpine image info..."
+          echo "Pulling latest Ubuntu image info..."
           
           # Use docker manifest inspect instead of buildx imagetools
-          NEW_DIGEST=$(docker manifest inspect alpine:latest | jq -r '.config.digest // .digest // empty')
+          NEW_DIGEST=$(docker manifest inspect ubuntu:25.10 | jq -r '.config.digest // .digest // empty')
           
           # Fallback method if the above doesn't work
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Trying alternative digest retrieval method..."
-            docker pull alpine:latest > /dev/null 2>&1
-            NEW_DIGEST=$(docker image inspect alpine:latest --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
+            docker pull ubuntu:25.10 > /dev/null 2>&1
+            NEW_DIGEST=$(docker image inspect ubuntu:25.10 --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
           fi
           
           # Final fallback using docker buildx but with better error handling
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Using buildx imagetools as fallback..."
             set +e  # Don't exit on error
-            INSPECT_OUTPUT=$(docker buildx imagetools inspect alpine:latest --format '{{json .}}' 2>/dev/null)
+            INSPECT_OUTPUT=$(docker buildx imagetools inspect ubuntu:25.10 --format '{{json .}}' 2>/dev/null)
             if [ $? -eq 0 ]; then
               NEW_DIGEST=$(echo "$INSPECT_OUTPUT" | jq -r '.manifest.digest // .digest // empty')
             fi
             set -e  # Re-enable exit on error
           fi
           
-          echo "Current Alpine digest: $NEW_DIGEST"
+          echo "Current Ubuntu digest: $NEW_DIGEST"
           
           # Validate digest format
           if [[ ! "$NEW_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
             echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST"
             echo "Skipping build due to digest retrieval error."
             echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "update_reason=Failed to retrieve valid Alpine digest" >> $GITHUB_OUTPUT
+            echo "update_reason=Failed to retrieve valid Ubuntu digest" >> $GITHUB_OUTPUT
             exit 0
           fi
           
           # Get stored digest from GitHub Variables
-          STORED_DIGEST="${{ vars.ALPINE_DIGEST }}"
-          echo "Stored Alpine digest: $STORED_DIGEST"
+          STORED_DIGEST="${{ vars.UBUNTU_DIGEST }}"
+          echo "Stored Ubuntu digest: $STORED_DIGEST"
           
           # Handle empty or missing stored digest
           if [ -z "$STORED_DIGEST" ] || [ "$STORED_DIGEST" = " " ] || [ "$STORED_DIGEST" = "sha256:initial" ]; then
             echo "🆕 No previous digest stored. This is the first run - build will proceed."
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "digest=$NEW_DIGEST" >> $GITHUB_OUTPUT
-            echo "update_reason=First run - initializing Alpine digest tracking" >> $GITHUB_OUTPUT
+            echo "update_reason=First run - initializing Ubuntu digest tracking" >> $GITHUB_OUTPUT
           elif [ "$NEW_DIGEST" != "$STORED_DIGEST" ]; then
-            echo "✅ Alpine Linux has been updated! Build will proceed."
+            echo "✅ Ubuntu has been updated! Build will proceed."
             echo "should_build=true" >> $GITHUB_OUTPUT
             echo "digest=$NEW_DIGEST" >> $GITHUB_OUTPUT
-            echo "update_reason=Alpine Linux base image updated (${STORED_DIGEST:0:12}... → ${NEW_DIGEST:0:12}...)" >> $GITHUB_OUTPUT
+            echo "update_reason=Ubuntu base image updated (${STORED_DIGEST:0:12}... → ${NEW_DIGEST:0:12}...)" >> $GITHUB_OUTPUT
           else
-            echo "ℹ️ No Alpine update detected. Skipping build."
+            echo "ℹ️ No Ubuntu update detected. Skipping build."
             echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "update_reason=No Alpine updates detected" >> $GITHUB_OUTPUT
+            echo "update_reason=No Ubuntu updates detected" >> $GITHUB_OUTPUT
           fi
       
       - name: Set default for non-scheduled runs
@@ -195,7 +195,7 @@ jobs:
           # Add special tag for base image updates
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=raw,value=alpine-update-{{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
+            type=raw,value=ubuntu-update-{{date 'YYYY-MM-DD'}},enable=${{ github.event_name == 'schedule' }}
    
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
@@ -241,8 +241,8 @@ jobs:
           platforms: ${{ matrix.platform.name }}
           labels: |
             ${{ steps.meta.outputs.labels }}
-            org.opencontainers.image.description=LibHdHomerun Docker container
-            ${{ github.event_name == 'schedule' && format('alpine.base.updated={0}', needs.check-base-image.outputs.alpine_digest) || '' }}
+            org.opencontainers.image.description=LibHdHomerun Docker container built on Ubuntu
+            ${{ github.event_name == 'schedule' && format('ubuntu.base.updated={0}', needs.check-base-image.outputs.ubuntu_digest) || '' }}
           provenance: mode=max
           sbom: true
           outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=true
@@ -326,7 +326,7 @@ jobs:
           
           # Add special tag for base image updates
           if [ "${{ github.event_name }}" == "schedule" ]; then
-            docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:alpine-update-$(date +%Y-%m-%d) \
+            docker buildx imagetools create --tag ${{ env.REGISTRY_IMAGE }}:ubuntu-update-$(date +%Y-%m-%d) \
               $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
           fi
 
@@ -338,7 +338,7 @@ jobs:
           
           # Add special tag for base image updates
           if [ "${{ github.event_name }}" == "schedule" ]; then
-            docker buildx imagetools create --tag ${{ env.GHCR_IMAGE }}:alpine-update-$(date +%Y-%m-%d) \
+            docker buildx imagetools create --tag ${{ env.GHCR_IMAGE }}:ubuntu-update-$(date +%Y-%m-%d) \
               $(printf '${{ env.GHCR_IMAGE }}@sha256:%s ' *)
           fi
 
@@ -349,21 +349,21 @@ jobs:
           echo "GHCR images:"
           docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:latest
 
-  # NEW: Update stored Alpine digest after successful build
+  # NEW: Update stored Ubuntu digest after successful build
   update-digest:
     runs-on: ubuntu-latest
     needs: [check-base-image, merge]
-    if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_build == 'false')) && needs.check-base-image.outputs.alpine_digest != '' && needs.merge.result == 'success'
+    if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_build == 'false')) && needs.check-base-image.outputs.ubuntu_digest != '' && needs.merge.result == 'success'
     steps:
-      - name: Update stored Alpine digest
+      - name: Update stored Ubuntu digest
         run: |
-          echo "📝 Updating stored Alpine digest..."
-          echo "Previous: ${{ vars.ALPINE_DIGEST }}"
-          echo "New: ${{ needs.check-base-image.outputs.alpine_digest }}"
+          echo "📝 Updating stored Ubuntu digest..."
+          echo "Previous: ${{ vars.UBUNTU_DIGEST }}"
+          echo "New: ${{ needs.check-base-image.outputs.ubuntu_digest }}"
           
-          gh variable set ALPINE_DIGEST --body "${{ needs.check-base-image.outputs.alpine_digest }}"
+          gh variable set UBUNTU_DIGEST --body "${{ needs.check-base-image.outputs.ubuntu_digest }}"
           
-          echo "✅ Alpine digest updated successfully!"
+          echo "✅ Ubuntu digest updated successfully!"
           echo "Next scheduled run will use this new digest for comparison."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -381,12 +381,12 @@ jobs:
           
           if [ "${{ github.event_name }}" == "schedule" ]; then
             if [ "${{ needs.check-base-image.outputs.should_build }}" == "true" ]; then
-              echo "**Status:** ✅ Alpine Linux updated - Build completed" >> $GITHUB_STEP_SUMMARY
+              echo "**Status:** ✅ Ubuntu updated - Build completed" >> $GITHUB_STEP_SUMMARY
               echo "**Reason:** ${{ needs.check-base-image.outputs.update_reason }}" >> $GITHUB_STEP_SUMMARY
-              echo "**New Alpine Digest:** \`${{ needs.check-base-image.outputs.alpine_digest }}\`" >> $GITHUB_STEP_SUMMARY
+              echo "**New Ubuntu Digest:** \`${{ needs.check-base-image.outputs.ubuntu_digest }}\`" >> $GITHUB_STEP_SUMMARY
             else
               echo "**Status:** ⏭️ No updates detected - Build skipped" >> $GITHUB_STEP_SUMMARY
-              echo "**Reason:** Alpine Linux digest unchanged" >> $GITHUB_STEP_SUMMARY
+              echo "**Reason:** Ubuntu digest unchanged" >> $GITHUB_STEP_SUMMARY
             fi
           else
             echo "**Status:** ✅ Build completed" >> $GITHUB_STEP_SUMMARY
