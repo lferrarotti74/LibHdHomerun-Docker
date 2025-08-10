@@ -239,6 +239,7 @@ jobs:
         with:
           context: .
           platforms: ${{ matrix.platform.name }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.description=LibHdHomerun Docker container built on Ubuntu

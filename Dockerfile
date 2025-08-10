@@ -1,7 +1,10 @@
 FROM ubuntu:25.10 AS stage
 
 RUN apt update && apt-get upgrade -y \
-    && apt --no-install-recommends install -y build-essential git ca-certificates \
+    && apt --no-install-recommends install -y \
+    build-essential \
+    ca-certificates \
+    git \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && git clone https://github.com/Silicondust/libhdhomerun.git \
