@@ -353,20 +353,39 @@ jobs:
   update-digest:
     runs-on: ubuntu-latest
     needs: [check-base-image, merge]
-    if: (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_build == 'false')) && needs.check-base-image.outputs.ubuntu_digest != '' && needs.merge.result == 'success'
+    if: >
+      (github.event_name == 'schedule' ||
+      (github.event_name == 'workflow_dispatch' && inputs.force_build == 'false')) &&
+      needs.check-base-image.outputs.ubuntu_digest != '' &&
+      needs.merge.result == 'success'
+    permissions:
+      contents: write
     steps:
-      - name: Update stored Ubuntu digest
+      - name: Conditionally update stored Ubuntu digest
         run: |
-          echo "📝 Updating stored Ubuntu digest..."
-          echo "Previous: ${{ vars.UBUNTU_DIGEST }}"
-          echo "New: ${{ needs.check-base-image.outputs.ubuntu_digest }}"
-          
-          gh variable set UBUNTU_DIGEST --body "${{ needs.check-base-image.outputs.ubuntu_digest }}"
-          
+          echo "📝 Checking if Ubuntu digest needs update..."
+
+          CURRENT="${{ vars.UBUNTU_DIGEST }}"
+          NEW="${{ needs.check-base-image.outputs.ubuntu_digest }}"
+
+          echo "Current: $CURRENT"
+          echo "New:     $NEW"
+
+          if [ "$CURRENT" = "$NEW" ]; then
+            echo "ℹ️ No change in Ubuntu digest — skipping update."
+            exit 0
+          fi
+
+          echo "✏️ Updating stored Ubuntu digest..."
+          gh variable set UBUNTU_DIGEST \
+            --body "$NEW" \
+            --repo "${GITHUB_REPOSITORY}"
+
           echo "✅ Ubuntu digest updated successfully!"
           echo "Next scheduled run will use this new digest for comparison."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
 
   # NEW: Build Summary
   build-summary:
