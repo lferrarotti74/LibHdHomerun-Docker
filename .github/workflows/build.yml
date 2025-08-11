@@ -384,32 +384,35 @@ jobs:
       needs.merge.result == 'success'
     permissions:
       contents: write
+      actions: write
     steps:
-      - name: Conditionally update stored Ubuntu digest
+      - name: Update stored Ubuntu digest via API
         run: |
           echo "📝 Checking if Ubuntu digest needs update..."
-
           CURRENT="${{ vars.UBUNTU_DIGEST }}"
           NEW="${{ needs.check-base-image.outputs.ubuntu_digest }}"
-
+  
           echo "Current: $CURRENT"
           echo "New:     $NEW"
-
+  
           if [ "$CURRENT" = "$NEW" ]; then
             echo "ℹ️ No change in Ubuntu digest — skipping update."
             exit 0
           fi
-
-          echo "✏️ Updating stored Ubuntu digest..."
-          gh variable set UBUNTU_DIGEST \
-            --body "$NEW" \
-            --repo "${GITHUB_REPOSITORY}"
-
+  
+          echo "✏️ Updating stored Ubuntu digest via API..."
+          gh api \
+            --method PATCH \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${GITHUB_REPOSITORY}/actions/variables/UBUNTU_DIGEST" \
+            -f "name=UBUNTU_DIGEST" \
+            -f "value=$NEW"
+  
           echo "✅ Ubuntu digest updated successfully!"
           echo "Next scheduled run will use this new digest for comparison."
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
 
   # NEW: Build Summary
   build-summary:
