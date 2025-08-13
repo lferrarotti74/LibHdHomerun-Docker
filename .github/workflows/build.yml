@@ -146,7 +146,7 @@ jobs:
     needs: [check-base-image]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0  # Required for proper blame/coverage tracking
 
@@ -194,7 +194,7 @@ jobs:
         ]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Log build trigger reason
         run: |
