@@ -2,8 +2,9 @@ name: Build release image
 
 # Add permissions block
 permissions:
-  contents: read
+  contents: write  # Required for updating variables
   packages: write
+  actions: write   # Required for updating repository variables
 
 on:
   workflow_dispatch:
@@ -24,6 +25,11 @@ on:
         type: string
       force_build:
         description: 'Force build even if no base image updates'
+        required: false
+        default: false
+        type: boolean
+      update_digest:
+        description: 'Update base image digests after manual build'
         required: false
         default: false
         type: boolean
@@ -54,7 +60,7 @@ jobs:
     steps:
       - name: Check Ubuntu updates
         id: check-image
-        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.force_build == 'false')
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.force_build == 'false' || inputs.update_digest == 'true'))
         run: |
           echo "🔍 Checking Ubuntu for updates..."
           
@@ -374,12 +380,17 @@ jobs:
           docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:latest
 
   # NEW: Update stored Ubuntu digest after successful build
+  # Updated update-digest job
   update-digest:
     runs-on: ubuntu-latest
     needs: [check-base-image, merge]
+    permissions:
+      contents: write  # Changed from 'read' to 'write'
+      packages: write  # Keep existing
+      actions: write   # Add this for variable updates
     if: >
       (github.event_name == 'schedule' || 
-       (github.event_name == 'workflow_dispatch' && inputs.force_build == 'false')) &&
+       (github.event_name == 'workflow_dispatch' && inputs.update_digest == 'true')) &&
       needs.merge.result == 'success'
     steps:
       - name: Update stored base image digests
@@ -393,7 +404,16 @@ jobs:
               echo "📝 Updating $var_name..."
               echo "Previous: $current_value"
               echo "New: $new_value"
-              gh variable set "$var_name" --body "$new_value"
+
+              # Use GitHub CLI API directly instead of gh variable set
+              gh api \
+                --method PATCH \
+                -H "Accept: application/vnd.github+json" \
+                -H "X-GitHub-Api-Version: 2022-11-28" \
+                "/repos/${{ github.repository }}/actions/variables/$var_name" \
+                -f "name=$var_name" \
+                -f "value=$new_value"
+
               echo "✅ $var_name updated successfully!"
             else
               echo "ℹ️ $var_name unchanged."
@@ -403,7 +423,7 @@ jobs:
           update_digest "ALPINE_DIGEST" "${{ vars.ALPINE_DIGEST }}" "${{ needs.check-base-image.outputs.alpine_digest }}"
           update_digest "UBUNTU_DIGEST" "${{ vars.UBUNTU_DIGEST }}" "${{ needs.check-base-image.outputs.ubuntu_digest }}"
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
 
   # NEW: Build Summary
   build-summary:
