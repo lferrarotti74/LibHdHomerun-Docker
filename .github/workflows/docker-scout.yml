@@ -5,8 +5,49 @@ on:
     branches:
       - main
     paths-ignore:
-      - 'README.md'
-      - 'LICENSE'
+      # Documentation files
+      - '*.md'
+      - 'docs/**'
+      - '.github/**/*.md'
+      
+      # License and legal files
+      - 'LICENSE*'
+      - 'COPYING*'
+      - 'COPYRIGHT*'
+      
+      # Git and GitHub specific files
+      - '.gitignore'
+      - '.gitattributes'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - '.github/dependabot.yml'
+      - '.github/CODEOWNERS'
+      
+      # Editor and IDE files
+      - '.vscode/**'
+      - '.idea/**'
+      - '*.swp'
+      - '*.swo'
+      - '*~'
+      
+      # Package manager files that don't affect builds
+      - '.npmignore'
+      - '.dockerignore'
+      - '.eslintignore'
+      - '.prettierignore'
+      
+      # CI/CD configuration for other systems
+      - '.travis.yml'
+      - '.circleci/**'
+      - 'Jenkinsfile'
+      - '.gitlab-ci.yml'
+      
+      # Common non-code files
+      - '*.txt'
+      - 'CHANGELOG*'
+      - 'CONTRIBUTING*'
+      - 'AUTHORS*'
+      - 'MAINTAINERS*'
 
 env:
   REGISTRY: docker.io
