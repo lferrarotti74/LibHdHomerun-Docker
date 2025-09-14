@@ -157,9 +157,25 @@ cd LibHdHomerun-Docker
 docker build -t libhdhomerun-docker .
 ```
 
+## Documentation
+
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute to the project
+- **[Code of Conduct](CODE_OF_CONDUCT.md)** - Community standards and behavior expectations
+- **[Security Policy](SECURITY.md)** - How to report security vulnerabilities
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+- **[Maintainers](MAINTAINERS.md)** - Project governance and maintainer information
+- **[Authors](AUTHORS.md)** - Contributors and acknowledgments
+
 ## Contributing
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+We welcome contributions from the community! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting pull requests.
+
+- **Bug Reports**: Use GitHub issues with detailed information
+- **Feature Requests**: Propose enhancements via GitHub issues
+- **Code Contributions**: Fork, create feature branch, and submit PR
+- **Documentation**: Help improve docs and examples
+
+Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) in all interactions.
 
 ## License
 
