@@ -141,6 +141,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.vars.outputs.TAG }}
+          generate_release_notes: true
           files: |
             release/${{ steps.vars.outputs.TAG }}.tar.gz
             release/${{ steps.vars.outputs.TAG }}.zip
