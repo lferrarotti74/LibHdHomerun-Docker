@@ -16,7 +16,7 @@ A Docker container for the [Silicondust libhdhomerun](https://github.com/Silicon
 
 ## What is LibHdHomerun?
 
-LibHdHomerun is the official library from Silicondust that implements the HDHomeRun protocol for controlling HDHomeRun TV tuners. <mcreference link="https://github.com/Silicondust/libhdhomerun" index="0">0</mcreference> The library includes the `hdhomerun_config` command-line utility which allows you to:
+LibHdHomerun is the official library from Silicondust that implements the HDHomeRun protocol for controlling HDHomeRun TV tuners. The library includes the `hdhomerun_config` command-line utility which allows you to:
 
 - Discover HDHomeRun devices on your network
 - Configure tuner settings
