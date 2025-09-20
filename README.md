@@ -179,6 +179,12 @@ We welcome contributions from the community! Please read our [Contributing Guide
 
 Please follow our [Code of Conduct](CODE_OF_CONDUCT.md) in all interactions.
 
+## Support
+
+For issues related to this Docker container, please open an issue on [GitHub](https://github.com/lferrarotti74/LibHdHomerun-Docker/issues).
+
+For HDHomeRun device support, please refer to [Silicondust's support resources](https://www.silicondust.com/support/).
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
@@ -189,8 +195,3 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [HDHomeRun Configuration Documentation](https://info.hdhomerun.com/info/hdhomerun_config)
 - [Silicondust Official Website](https://www.silicondust.com/)
 - [Docker Hub Repository](https://hub.docker.com/r/lferrarotti74/libhdhomerun-docker)
-
-## Support
-
-For issues related to this Docker container, please open an issue on GitHub.
-For HDHomeRun device support, please refer to [Silicondust's support resources](https://www.silicondust.com/support/).
