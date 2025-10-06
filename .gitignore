@@ -279,6 +279,11 @@ secrets.json           # Secret files
 .secrets               # Hidden secrets
 
 # =============================================================================
+# PROJECT-SPECIFIC DOCUMENTATION AND SECURITY FILES
+# =============================================================================
+repository-security-checklist.md  # Internal security checklist (contains sensitive info)
+
+# =============================================================================
 # BUILD TOOLS AND DEPENDENCIES
 # =============================================================================
 node_modules/          # Node.js dependencies
