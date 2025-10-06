@@ -278,6 +278,9 @@ config.json            # Configuration files (if they contain secrets)
 secrets.json           # Secret files
 .secrets               # Hidden secrets
 
+# Project-specific security files
+repository-security-checklist.md
+
 # =============================================================================
 # PROJECT-SPECIFIC DOCUMENTATION AND SECURITY FILES
 # =============================================================================
