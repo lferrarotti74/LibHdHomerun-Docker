@@ -40,7 +40,7 @@ RUN git clone --depth 1 https://github.com/Silicondust/libhdhomerun.git \
         [ "$JOBS" -lt 1 ] && JOBS=1; \
     fi \
     && echo "Building on $ARCH with $JOBS jobs" \
-    && make -j$JOBS || (echo "Make failed, trying with single job" && make -j1) \
+    && make -j"$JOBS" || (echo "Make failed, trying with single job" && make -j1) \
     && strip hdhomerun_config libhdhomerun.so
 
 # Production stage - minimal base image
@@ -59,7 +59,7 @@ LABEL org.opencontainers.image.documentation="https://github.com/lferrarotti74/L
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install only essential runtime dependencies with version pinning
+# Install only essential runtime dependencies with version pinning and create application user
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
@@ -67,10 +67,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && rm -rf /tmp/* /var/tmp/* \
-    && find /var/log -type f -delete
-
-# Create application user with specific UID/GID for security
-RUN groupadd --system --gid 1001 libhdhomerun \
+    && find /var/log -type f -delete \
+    && groupadd --system --gid 1001 libhdhomerun \
     && useradd --system --uid 1001 --gid libhdhomerun \
         --comment "libhdhomerun service user" \
         --home-dir /libhdhomerun \
@@ -84,7 +82,7 @@ COPY --from=stage --chown=libhdhomerun:libhdhomerun \
     /tmp/build/libhdhomerun/libhdhomerun.so \
     /libhdhomerun/
 
-# Set secure permissions
+# Set secure permissions and add library path for runtime
 RUN chmod 755 /libhdhomerun/hdhomerun_config \
     && chmod 644 /libhdhomerun/libhdhomerun.so \
     && chmod 750 /libhdhomerun
