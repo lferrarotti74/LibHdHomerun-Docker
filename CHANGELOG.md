@@ -23,6 +23,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 ### Security
+- Implemented comprehensive Dockerfile security hardening
+- Added multi-stage build with non-root user execution
+- Pinned package versions for reproducible builds
+- Minimized attack surface with --no-install-recommends
+- Added architecture-specific build optimization (x86_64/ARM)
+- Updated GitHub Actions to use SHA-pinned versions for supply chain security
+- Enhanced container security with proper file permissions and capabilities dropping
 
 ## [v2025.05.06] - 2025-09-14
 
