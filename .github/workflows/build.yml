@@ -110,20 +110,20 @@ jobs:
           echo "Pulling latest Ubuntu image info..."
           
           # Use docker manifest inspect instead of buildx imagetools
-          NEW_DIGEST=$(docker manifest inspect ubuntu:25.10 | jq -r '.config.digest // .digest // empty')
+          NEW_DIGEST=$(docker manifest inspect ubuntu:24.04 | jq -r '.config.digest // .digest // empty')
           
           # Fallback method if the above doesn't work
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Trying alternative digest retrieval method..."
-            docker pull ubuntu:25.10 > /dev/null 2>&1
-            NEW_DIGEST=$(docker image inspect ubuntu:25.10 --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
+            docker pull ubuntu:24.04 > /dev/null 2>&1
+            NEW_DIGEST=$(docker image inspect ubuntu:24.04 --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
           fi
           
           # Final fallback using docker buildx but with better error handling
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Using buildx imagetools as fallback..."
             set +e  # Don't exit on error
-            INSPECT_OUTPUT=$(docker buildx imagetools inspect ubuntu:25.10 --format '{{json .}}' 2>/dev/null)
+            INSPECT_OUTPUT=$(docker buildx imagetools inspect ubuntu:24.04 --format '{{json .}}' 2>/dev/null)
             if [ $? -eq 0 ]; then
               NEW_DIGEST=$(echo "$INSPECT_OUTPUT" | jq -r '.manifest.digest // .digest // empty')
             fi
@@ -270,8 +270,8 @@ jobs:
         uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
         with:
           images: |
-            ${{ env.DOCKERHUB_REPO }}
-            ghcr.io/${{ github.repository }}
+            ${{ env.REGISTRY_IMAGE }}
+            ${{ env.GHCR_IMAGE }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -318,7 +318,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.DOCKERHUB_REPO }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
@@ -372,8 +372,8 @@ jobs:
         uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96 # v5.6.1
         with:
           images: |
-            ${{ env.DOCKERHUB_REPO }}
-            ghcr.io/${{ github.repository }}
+            ${{ env.REGISTRY_IMAGE }}
+            ${{ env.GHCR_IMAGE }}
           tags: |
             type=ref,event=branch
             type=ref,event=pr
@@ -420,7 +420,7 @@ jobs:
           context: .
           platforms: ${{ matrix.platform }}
           labels: ${{ steps.meta.outputs.labels }}
-          outputs: type=image,name=${{ env.DOCKERHUB_REPO }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
+          outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
 
