@@ -82,9 +82,9 @@ COPY --from=stage --chown=libhdhomerun:libhdhomerun \
     /tmp/build/libhdhomerun/libhdhomerun.so \
     /libhdhomerun/
 
-# Set secure permissions and add library path for runtime
-RUN chmod 755 /libhdhomerun/hdhomerun_config \
-    && chmod 644 /libhdhomerun/libhdhomerun.so \
+# Set secure permissions with no write access for copied resources
+RUN chmod 555 /libhdhomerun/hdhomerun_config \
+    && chmod 444 /libhdhomerun/libhdhomerun.so \
     && chmod 750 /libhdhomerun
 
 # Add library path for runtime
