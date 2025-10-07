@@ -350,7 +350,7 @@ jobs:
 
   # Build images on ARM runner
   build-arm:
-    runs-on: ubuntu-24.04-arm64 # ARM-specific runner
+    runs-on: ubuntu-24.04-arm # ARM-specific runner
     # Only run if it's not a scheduled run, OR if it's scheduled and base image updated
     if: github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true'
     needs: [check-base-image]
