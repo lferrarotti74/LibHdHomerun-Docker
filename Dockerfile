@@ -76,15 +76,17 @@ RUN apt-get update \
         --shell /sbin/nologin \
         libhdhomerun
 
-# Copy binaries from build stage with proper ownership
-COPY --from=stage --chown=libhdhomerun:libhdhomerun \
+# Copy binaries from build stage with secure ownership and permissions
+COPY --from=stage --chown=root:root --chmod=555 \
     /tmp/build/libhdhomerun/hdhomerun_config \
-    /tmp/build/libhdhomerun/libhdhomerun.so \
-    /libhdhomerun/
+    /libhdhomerun/hdhomerun_config
 
-# Set secure permissions with no write access for copied resources
-RUN chmod 555 /libhdhomerun/hdhomerun_config \
-    && chmod 444 /libhdhomerun/libhdhomerun.so \
+COPY --from=stage --chown=root:root --chmod=444 \
+    /tmp/build/libhdhomerun/libhdhomerun.so \
+    /libhdhomerun/libhdhomerun.so
+
+# Set secure permissions for the application directory
+RUN chown libhdhomerun:libhdhomerun /libhdhomerun \
     && chmod 750 /libhdhomerun
 
 # Add library path for runtime
