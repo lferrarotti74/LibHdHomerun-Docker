@@ -102,6 +102,6 @@ WORKDIR /libhdhomerun
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 #     CMD ./hdhomerun_config discover || exit 1
 
-# Default command - more flexible approach
-# Use 'help' as default to show available options instead of failing discovery
-CMD ["./hdhomerun_config", "help"]
+# Default command - keep container running for interactive use
+# Use bash to keep container alive for manual CLI usage
+CMD ["/bin/bash"]
