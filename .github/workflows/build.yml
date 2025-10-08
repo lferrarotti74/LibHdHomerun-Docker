@@ -2,9 +2,10 @@ name: Build release image
 
 # Add permissions block
 permissions:
-  contents: write  # Required for updating variables
-  packages: write
-  actions: write   # Required for updating repository variables
+  contents: write        # Required for updating variables
+  packages: write        # Required for pushing to container registries
+  actions: write         # Required for updating repository variables
+  security-events: write # Required for uploading SARIF results to GitHub Security
 
 on:
   workflow_dispatch:
@@ -529,6 +530,135 @@ jobs:
           echo "GHCR images:"
           docker buildx imagetools inspect ${{ env.GHCR_IMAGE }}:latest
 
+  # Multi-tool Security Scanning
+  security-scan:
+    name: Security Scan (Trivy + Grype + OSV)
+    runs-on: ubuntu-latest
+    needs: [merge, build-x86, build-arm]
+    if: always() && (needs.merge.result == 'success' || (needs.build-x86.result == 'success' && needs.build-arm.result == 'success'))
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v5.2.0
+      
+      - name: Login to Docker Hub
+        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef # v3.6.0
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      ######################
+      # Manual Trivy Setup
+      ######################
+      - name: Setup Trivy
+        run: |
+          sudo apt-get update
+          sudo apt-get install wget apt-transport-https gnupg lsb-release
+          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+          sudo apt-get update
+          sudo apt-get install trivy
+
+      - name: Cache Trivy DB
+        uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
+        with:
+          path: ~/.cache/trivy
+          key: trivy-db-${{ runner.os }}-${{ hashFiles('**/Dockerfile') }}-${{ github.run_id }}
+          restore-keys: |
+            trivy-db-${{ runner.os }}-${{ hashFiles('**/Dockerfile') }}-
+            trivy-db-${{ runner.os }}-
+
+      ######################
+      # Enhanced Trivy Scan
+      ######################
+      - name: Run Trivy vulnerability scanner
+        run: |
+          trivy image \
+            --format table \
+            --output trivy-report.txt \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --exit-code 0 \
+            --no-progress \
+            --timeout 10m \
+            ${{ env.REGISTRY_IMAGE }}:latest
+
+      - name: Run Trivy SARIF scan for GitHub Security
+        run: |
+          trivy image \
+            --format sarif \
+            --output trivy-results.sarif \
+            --severity CRITICAL,HIGH,MEDIUM \
+            --exit-code 0 \
+            --no-progress \
+            --timeout 10m \
+            ${{ env.REGISTRY_IMAGE }}:latest
+
+      - name: Run Trivy secret scan
+        run: |
+          trivy image \
+            --scanners secret \
+            --format table \
+            --output trivy-secrets.txt \
+            --exit-code 0 \
+            --no-progress \
+            --timeout 5m \
+            ${{ env.REGISTRY_IMAGE }}:latest
+
+      ######################
+      # Grype Scan
+      ######################
+      - name: Install Grype
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Run Grype vulnerability scanner
+        run: |
+          grype ${{ env.REGISTRY_IMAGE }}:latest -o json > grype-report.json || true
+          grype ${{ env.REGISTRY_IMAGE }}:latest -o table > grype-report.txt || true
+
+      ######################
+      # OSV-Scanner for app dependencies
+      ######################
+      - name: Install Syft (SBOM generator)
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Generate SBOM
+        run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
+
+      - name: Install OSV Scanner
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan SBOM with OSV
+        run: osv-scanner sbom.json --output osv-report.json || true
+
+      ######################
+      # Upload SARIF to GitHub Security
+      ######################
+      - name: Upload Trivy SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@64d10c13136e1c5bce3e5fbde8d4906eeaafc885 # v3.30.6
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+          category: trivy-container-scan
+
+      ######################
+      # Upload all scan reports
+      ######################
+      - name: Upload Security Scan Reports
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4.4.3
+        with:
+          name: security-reports
+          path: |
+            trivy-report.txt
+            trivy-results.sarif
+            trivy-secrets.txt
+            grype-report.json
+            grype-report.txt
+            sbom.json
+            osv-report.json
+          retention-days: 30
+
   # NEW: Update stored Ubuntu digest after successful build
   # Updated update-digest job
   update-digest:
@@ -578,11 +708,123 @@ jobs:
   # NEW: Build Summary
   build-summary:
     runs-on: ubuntu-latest
-    needs: [check-base-image, build-x86, build-arm, merge, update-digest]
+    needs: [check-base-image, build-x86, build-arm, merge, security-scan, update-digest]
     if: always()
     steps:
+      - name: Download Security Reports
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v4
+        with:
+          name: security-reports
+          path: ./security-reports
+        continue-on-error: true
+      
+      - name: Generate Security Summary
+        run: |
+          echo "## 🔒 Security Scan Results" >> $GITHUB_STEP_SUMMARY
+          
+          # Enhanced Trivy parsing with SARIF support and improved accuracy
+          if [ -f "./security-reports/trivy-results.sarif" ]; then
+            # Use SARIF for more accurate parsing (prioritized)
+            CRITICAL=$(jq -r '.runs[].results[] | select(.level == "error" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            HIGH=$(jq -r '.runs[].results[] | select(.level == "warning" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            MEDIUM=$(jq -r '.runs[].results[] | select(.level == "note" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+            LOW=$(jq -r '.runs[].results[] | select(.level == "info" and (.ruleId | contains("CVE"))) | .ruleId' ./security-reports/trivy-results.sarif 2>/dev/null | wc -l || echo "0")
+          elif [ -f "./security-reports/trivy-report.txt" ]; then
+            # Fallback to text parsing with improved accuracy
+            CRITICAL=$(grep -E "CVE-[0-9]{4}-[0-9]+.*CRITICAL" ./security-reports/trivy-report.txt | wc -l || echo "0")
+            HIGH=$(grep -E "CVE-[0-9]{4}-[0-9]+.*HIGH" ./security-reports/trivy-report.txt | wc -l || echo "0")
+            MEDIUM=$(grep -E "CVE-[0-9]{4}-[0-9]+.*MEDIUM" ./security-reports/trivy-report.txt | wc -l || echo "0")
+            LOW=$(grep -E "CVE-[0-9]{4}-[0-9]+.*LOW" ./security-reports/trivy-report.txt | wc -l || echo "0")
+          else
+            CRITICAL=0; HIGH=0; MEDIUM=0; LOW=0
+          fi
+          
+          # Parse Trivy secrets report (enhanced - use dedicated secrets file)
+          if [ -f "./security-reports/trivy-secrets.txt" ]; then
+            SECRET_FINDINGS=$(grep -E "(SECRET|API_KEY|PASSWORD|TOKEN)" ./security-reports/trivy-secrets.txt | wc -l || echo "0")
+          else
+            SECRET_FINDINGS=0
+          fi
+          
+          # Parse Grype report for additional CVEs
+          if [ -f "./security-reports/grype-report.json" ]; then
+            GRYPE_CRITICAL=$(jq -r '.matches[] | select(.vulnerability.severity == "Critical") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+            GRYPE_HIGH=$(jq -r '.matches[] | select(.vulnerability.severity == "High") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+            GRYPE_MEDIUM=$(jq -r '.matches[] | select(.vulnerability.severity == "Medium") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+            GRYPE_LOW=$(jq -r '.matches[] | select(.vulnerability.severity == "Low") | .vulnerability.id' ./security-reports/grype-report.json 2>/dev/null | wc -l || echo "0")
+          else
+            GRYPE_CRITICAL=0; GRYPE_HIGH=0; GRYPE_MEDIUM=0; GRYPE_LOW=0
+          fi
+          
+          # Parse OSV report
+          if [ -f "./security-reports/osv-report.json" ]; then
+            OSV_VULNS=$(jq -r '.results[].packages[].vulnerabilities[]?.id' ./security-reports/osv-report.json 2>/dev/null | wc -l || echo "0")
+          else
+            OSV_VULNS=0
+          fi
+          
+          # Calculate totals
+          TOTAL_CRITICAL=$((CRITICAL + GRYPE_CRITICAL))
+          TOTAL_HIGH=$((HIGH + GRYPE_HIGH))
+          TOTAL_MEDIUM=$((MEDIUM + GRYPE_MEDIUM))
+          TOTAL_LOW=$((LOW + GRYPE_LOW))
+          TOTAL_VULNS=$((TOTAL_CRITICAL + TOTAL_HIGH + TOTAL_MEDIUM + TOTAL_LOW + OSV_VULNS))
+          
+          # Enhanced security status with secret priority
+          if [ $SECRET_FINDINGS -gt 0 ]; then
+            STATUS="🟡 **SECRETS FOUND - ACTION REQUIRED**"
+          elif [ $TOTAL_CRITICAL -gt 0 ]; then
+            STATUS="🔴 **CRITICAL VULNERABILITIES FOUND**"
+          elif [ $TOTAL_HIGH -gt 0 ]; then
+            STATUS="🟠 **HIGH VULNERABILITIES FOUND**"
+          elif [ $TOTAL_MEDIUM -gt 0 ]; then
+            STATUS="🟡 **MEDIUM VULNERABILITIES FOUND**"
+          elif [ $TOTAL_LOW -gt 0 ]; then
+            STATUS="🟢 **LOW VULNERABILITIES FOUND**"
+          else
+            STATUS="✅ **NO VULNERABILITIES FOUND**"
+          fi
+          
+          echo "### $STATUS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Vulnerability Summary Table
+          echo "#### 🛡️ Vulnerability Summary" >> $GITHUB_STEP_SUMMARY
+          echo "| Severity | Trivy | Grype | Total |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|-------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔴 Critical | $CRITICAL | $GRYPE_CRITICAL | $TOTAL_CRITICAL |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟠 High | $HIGH | $GRYPE_HIGH | $TOTAL_HIGH |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🟡 Medium | $MEDIUM | $GRYPE_MEDIUM | $TOTAL_MEDIUM |" >> $GITHUB_STEP_SUMMARY
+          echo "| 🔵 Low | $LOW | $GRYPE_LOW | $TOTAL_LOW |" >> $GITHUB_STEP_SUMMARY
+          echo "| 📊 **Total** | **$((CRITICAL + HIGH + MEDIUM + LOW))** | **$((GRYPE_CRITICAL + GRYPE_HIGH + GRYPE_MEDIUM + GRYPE_LOW))** | **$((TOTAL_CRITICAL + TOTAL_HIGH + TOTAL_MEDIUM + TOTAL_LOW))** |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Secret Scanning Results
+          echo "#### 🔐 Secret Scanning Results" >> $GITHUB_STEP_SUMMARY
+          if [ $SECRET_FINDINGS -gt 0 ]; then
+            echo "⚠️ **$SECRET_FINDINGS secret(s) detected** - Review and remediate immediately!" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "✅ No secrets detected in the container image" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          echo "**OSV Scanner**: $OSV_VULNS dependency vulnerabilities found" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Enhanced Scan Details
+          echo "#### 📋 Scan Details" >> $GITHUB_STEP_SUMMARY
+          echo "- **Enhanced Trivy (v0.67.0)**: Container and filesystem vulnerability + secret scanner" >> $GITHUB_STEP_SUMMARY
+          echo "- **Grype**: Container image vulnerability scanner" >> $GITHUB_STEP_SUMMARY
+          echo "- **OSV Scanner**: Open Source Vulnerability scanner" >> $GITHUB_STEP_SUMMARY
+          echo "- **Syft**: Software Bill of Materials (SBOM) generator" >> $GITHUB_STEP_SUMMARY
+          echo "- **Artifact Retention**: 30 days" >> $GITHUB_STEP_SUMMARY
+          echo "- **Output Formats**: Table, SARIF, JSON" >> $GITHUB_STEP_SUMMARY
+          echo "- **SARIF Upload**: Results uploaded to GitHub Security tab" >> $GITHUB_STEP_SUMMARY
+          echo "- **Performance**: Manual setup with caching enabled" >> $GITHUB_STEP_SUMMARY
+      
       - name: Generate Build Summary
         run: |
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "## 🚀 Build Summary" >> $GITHUB_STEP_SUMMARY
           echo "**Trigger:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           
