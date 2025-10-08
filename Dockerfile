@@ -102,6 +102,7 @@ WORKDIR /libhdhomerun
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 #     CMD ./hdhomerun_config discover || exit 1
 
-# Default command - keep container running for interactive use
-# Use bash to keep container alive for manual CLI usage
-CMD ["/bin/bash"]
+# Default command - keep container running indefinitely
+# Use tail -f /dev/null to keep container alive for docker exec usage
+# Users can then use: docker exec -it container_name /bin/bash
+CMD ["tail", "-f", "/dev/null"]
