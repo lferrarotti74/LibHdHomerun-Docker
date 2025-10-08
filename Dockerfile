@@ -77,17 +77,17 @@ RUN apt-get update \
         libhdhomerun
 
 # Copy binaries from build stage with secure ownership and permissions
-COPY --from=stage --chown=root:root --chmod=555 \
+# Use libhdhomerun user ownership for consistent security model
+COPY --from=stage --chown=libhdhomerun:libhdhomerun --chmod=550 \
     /tmp/build/libhdhomerun/hdhomerun_config \
     /libhdhomerun/hdhomerun_config
 
-COPY --from=stage --chown=root:root --chmod=444 \
+COPY --from=stage --chown=libhdhomerun:libhdhomerun --chmod=440 \
     /tmp/build/libhdhomerun/libhdhomerun.so \
     /libhdhomerun/libhdhomerun.so
 
 # Set secure permissions for the application directory
-RUN chown libhdhomerun:libhdhomerun /libhdhomerun \
-    && chmod 750 /libhdhomerun
+RUN chmod 750 /libhdhomerun
 
 # Add library path for runtime
 ENV LD_LIBRARY_PATH=/libhdhomerun
