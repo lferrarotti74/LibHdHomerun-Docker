@@ -1,6 +1,7 @@
 # LibHdHomerun-Docker
 
 [![GitHub CI](https://github.com/lferrarotti74/LibHdHomerun-Docker/workflows/Build%20release%20image/badge.svg)](https://github.com/lferrarotti74/LibHdHomerun-Docker/actions/workflows/build.yml)
+[![Unit Test](https://github.com/lferrarotti74/LibHdHomerun-Docker/workflows/Unit%20Test/badge.svg)](https://github.com/lferrarotti74/LibHdHomerun-Docker/actions/workflows/tests.yml)
 [![Release](https://img.shields.io/github/v/release/lferrarotti74/LibHdHomerun-Docker)](https://github.com/lferrarotti74/LibHdHomerun-Docker/releases)
 [![Docker Hub](https://img.shields.io/docker/pulls/lferrarotti74/libhdhomerun-docker)](https://hub.docker.com/r/lferrarotti74/libhdhomerun-docker)
 [![Docker Image Size](https://img.shields.io/docker/image-size/lferrarotti74/libhdhomerun-docker/latest)](https://hub.docker.com/r/lferrarotti74/libhdhomerun-docker)

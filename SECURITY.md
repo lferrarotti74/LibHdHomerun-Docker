@@ -6,8 +6,8 @@ We actively support the following versions of LibHdHomerun-Docker with security 
 
 | Version     | Supported          |
 | ----------- | ------------------ |
-| v2025.x.x   | :white_check_mark: |
-| < v2025.x.x | :x:                |
+| v2025.05.06+ | :white_check_mark: |
+| < v2025.05.06 | :x:                |
 
 ## Reporting a Vulnerability
 

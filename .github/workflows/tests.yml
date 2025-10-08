@@ -1,0 +1,110 @@
+name: Unit Test
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev, main]
+    paths-ignore:
+      # Documentation files
+      - '*.md'
+      - 'docs/**'
+      - '.github/**/*.md'
+      
+      # License and legal files
+      - 'LICENSE*'
+      - 'COPYING*'
+      - 'COPYRIGHT*'
+      
+      # Git and GitHub specific files
+      - '.gitignore'
+      - '.gitattributes'
+      - '.github/ISSUE_TEMPLATE/**'
+      - '.github/PULL_REQUEST_TEMPLATE/**'
+      - '.github/dependabot.yml'
+      - '.github/CODEOWNERS'
+      
+      # Editor and IDE files
+      - '.vscode/**'
+      - '.idea/**'
+      - '*.swp'
+      - '*.swo'
+      - '*~'
+      
+      # Package manager files that don't affect builds
+      - '.npmignore'
+      - '.dockerignore'
+      - '.eslintignore'
+      - '.prettierignore'
+      
+      # CI/CD configuration for other systems
+      - '.travis.yml'
+      - '.circleci/**'
+      - 'Jenkinsfile'
+      - '.gitlab-ci.yml'
+      
+      # Common non-code files
+      - '*.txt'
+      - 'CHANGELOG*'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.2.0
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@e468171a9de216ec08956ac3ada2f0791b6bd435 # v3.11.1
+
+      - name: Build LibHdHomerun-Docker test image
+        run: |
+          docker build \
+            --tag libhdhomerun-docker:test \
+            .
+
+      - name: Install BATS testing framework
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Install additional testing tools
+        run: |
+          sudo apt-get install -y jq netcat-openbsd
+
+      - name: Run container build and functionality tests
+        run: |
+          bats tests/container/
+
+      - name: Run hdhomerun_config CLI tests
+        run: |
+          bats tests/cli/
+
+      - name: Run security validation tests
+        run: |
+          bats tests/security/
+
+      - name: Generate test report
+        if: always()
+        run: |
+          echo "LibHdHomerun-Docker Test Summary" > test-report.txt
+          echo "=================================" >> test-report.txt
+          echo "Container tests: $(find tests/container/ -name '*.bats' | wc -l) test files" >> test-report.txt
+          echo "CLI tests: $(find tests/cli/ -name '*.bats' | wc -l) test files" >> test-report.txt
+          echo "Security tests: $(find tests/security/ -name '*.bats' | wc -l) test files" >> test-report.txt
+          echo "Total test files: $(find tests/ -name '*.bats' | wc -l)" >> test-report.txt
+          cat test-report.txt
+
+      - name: Cleanup test resources
+        if: always()
+        run: |
+          # Clean up any remaining test containers
+          docker ps -a --filter "name=libhdhomerun-test" --format "{{.Names}}" | xargs -r docker rm -f
+          # Clean up test image
+          docker rmi libhdhomerun-docker:test || true
+          # Clean up any dangling images
+          docker image prune -f
