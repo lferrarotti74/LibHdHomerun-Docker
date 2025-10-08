@@ -77,6 +77,7 @@ RUN apt-get update \
         libhdhomerun
 
 # Copy binaries from build stage with secure ownership and permissions
+# Use root ownership as recommended by SonarQube for security compliance
 COPY --from=stage --chown=root:root --chmod=555 \
     /tmp/build/libhdhomerun/hdhomerun_config \
     /libhdhomerun/hdhomerun_config
