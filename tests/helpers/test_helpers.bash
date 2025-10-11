@@ -31,11 +31,25 @@ print_info() {
     echo -e "ℹ️  $1" >&3
 }
 
-# Build the test image
+# Build the test image (only if it doesn't exist)
 build_test_image() {
+    # Check if image already exists
+    if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${IMAGE_NAME}$"; then
+        print_success "Test image already exists: $IMAGE_NAME (skipping build)"
+        return 0
+    fi
+    
     print_info "Building test image: $IMAGE_NAME"
     docker build -t "$IMAGE_NAME" . >&3 2>&3
-    return $?
+    local exit_code=$?
+    
+    if [ $exit_code -eq 0 ]; then
+        print_success "Test image built successfully: $IMAGE_NAME"
+    else
+        print_error "Failed to build test image: $IMAGE_NAME"
+    fi
+    
+    return $exit_code
 }
 
 # Start a container for testing
@@ -75,12 +89,17 @@ cleanup_test_container() {
     fi
 }
 
-# Remove test image
+# Remove test image (with safety check)
 cleanup_test_image() {
-    if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${IMAGE_NAME}$"; then
-        print_info "Cleaning up test image: $IMAGE_NAME"
-        docker rmi "$IMAGE_NAME" >&3 2>&3
-        print_success "Image cleaned up"
+    # Only cleanup if explicitly requested via environment variable
+    if [ "$CLEANUP_TEST_IMAGE" = "true" ]; then
+        if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${IMAGE_NAME}$"; then
+            print_info "Cleaning up test image: $IMAGE_NAME"
+            docker rmi "$IMAGE_NAME" >&3 2>&3
+            print_success "Image cleaned up"
+        fi
+    else
+        print_info "Preserving test image: $IMAGE_NAME (set CLEANUP_TEST_IMAGE=true to force cleanup)"
     fi
 }
 

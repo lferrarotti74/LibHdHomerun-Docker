@@ -110,7 +110,7 @@ jobs:
         run: |
           # Clean up any remaining test containers
           docker ps -a --filter "name=libhdhomerun-test" --format "{{.Names}}" | xargs -r docker rm -f
-          # Clean up test image
+          # Clean up test image (only at workflow end)
           docker rmi libhdhomerun-docker:test || true
           # Clean up any dangling images
           docker image prune -f

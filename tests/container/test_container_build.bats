@@ -15,10 +15,8 @@ teardown() {
 }
 
 @test "Docker image builds successfully" {
-    # Clean up any existing image first
-    cleanup_test_image
-    
-    # Build the image
+    # Use pre-built image from workflow (no cleanup needed)
+    # Build the image (will skip if already exists)
     run build_test_image
     [ "$status" -eq 0 ]
     
