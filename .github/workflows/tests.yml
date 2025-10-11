@@ -1,11 +1,17 @@
 name: Unit Test
 
 on:
+  # Run tests on dev branch pushes (active development)
   push:
     branches: [dev]
+  
+  # Run tests on PRs to both branches with smart exclusions
   pull_request:
     branches: [dev, main]
     paths-ignore:
+      # Skip tests for Dependabot workflow updates
+      - '.github/workflows/**'
+      
       # Documentation files
       - '*.md'
       - 'docs/**'
