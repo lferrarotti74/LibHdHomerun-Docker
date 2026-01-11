@@ -149,12 +149,9 @@ wait_for_container() {
     print_info "Waiting for container to be ready (timeout: ${timeout}s)"
     
     while [[ $count -lt $timeout ]]; do
-        if is_container_running; then
-            # Test if we can execute commands
-            if docker exec "$CONTAINER_NAME" echo "test" >/dev/null 2>&1; then
-                print_success "Container is ready"
-                return 0
-            fi
+        if is_container_running && docker exec "$CONTAINER_NAME" echo "test" >/dev/null 2>&1; then
+            print_success "Container is ready"
+            return 0
         fi
         sleep 1
         count=$((count + 1))
@@ -195,12 +192,10 @@ validate_help_output() {
     local output="$1"
     
     # Check for expected usage patterns
-    if echo "$output" | grep -q "Usage:"; then
-        if echo "$output" | grep -q "hdhomerun_config discover"; then
-            if echo "$output" | grep -q "hdhomerun_config <id> get"; then
-                return 0
-            fi
-        fi
+    if echo "$output" | grep -q "Usage:" && \
+       echo "$output" | grep -q "hdhomerun_config discover" && \
+       echo "$output" | grep -q "hdhomerun_config <id> get"; then
+        return 0
     fi
     
     return 1
