@@ -1,11 +1,5 @@
 name: Build release image
 
-# Add permissions block
-permissions:
-  contents: write        # Required for updating variables
-  packages: write        # Required for pushing to container registries
-  actions: write         # Required for updating repository variables
-  security-events: write # Required for uploading SARIF results to GitHub Security
 
 on:
   workflow_dispatch:
@@ -95,6 +89,8 @@ env:
 jobs:
   # NEW: Check if base image (Ubuntu) has been updated
   check-base-image:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     outputs:
       should_build: ${{ steps.check-image.outputs.should_build || steps.default.outputs.should_build }}
@@ -172,6 +168,8 @@ jobs:
           echo "digest=" >> $GITHUB_OUTPUT
 
   print-tag:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     # Only run if it's not a scheduled run, OR if it's scheduled and base image updated
     if: github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true'
@@ -188,6 +186,8 @@ jobs:
   # Dummy SonarQube Analysis for Dependabot
   sonarqube-dummy:
     name: SonarQube Analysis
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     if: github.actor == 'dependabot[bot]'
     needs: [check-base-image]
@@ -198,6 +198,8 @@ jobs:
   # SonarQube Analysis Job
   sonarqube:
     name: SonarQube Analysis
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     if: >
       github.actor != 'dependabot[bot]' && (
@@ -249,6 +251,9 @@ jobs:
         
   # Build images on x86 runner
   build-x86:
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     # Only run if it's not a scheduled run, OR if it's scheduled and base image updated
     if: github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true'
@@ -353,6 +358,9 @@ jobs:
 
   # Build images on ARM runner
   build-arm:
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-24.04-arm # ARM-specific runner
     # Only run if it's not a scheduled run, OR if it's scheduled and base image updated
     if: github.event_name != 'schedule' || needs.check-base-image.outputs.should_build == 'true'
@@ -456,6 +464,9 @@ jobs:
           retention-days: 1
 
   merge:
+    permissions:
+      contents: read
+      packages: write
     runs-on: ubuntu-latest
     needs: 
       - build-x86
@@ -533,6 +544,9 @@ jobs:
   # Multi-tool Security Scanning
   security-scan:
     name: Security Scan (Trivy + Grype + OSV)
+    permissions:
+      contents: read
+      security-events: write
     runs-on: ubuntu-latest
     needs: [merge, build-x86, build-arm]
     if: always() && (needs.merge.result == 'success' || (needs.build-x86.result == 'success' && needs.build-arm.result == 'success'))
@@ -707,6 +721,8 @@ jobs:
 
   # NEW: Build Summary
   build-summary:
+    permissions:
+      contents: read
     runs-on: ubuntu-latest
     needs: [check-base-image, build-x86, build-arm, merge, security-scan, update-digest]
     if: always()
