@@ -553,7 +553,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install wget apt-transport-https gnupg lsb-release
-          wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+          wget --secure-protocol=TLSv1_2 --max-redirect=0 -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
           echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
           sudo apt-get update
           sudo apt-get install trivy
@@ -608,7 +608,7 @@ jobs:
       ######################
       - name: Install Grype
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Run Grype vulnerability scanner
         run: |
@@ -620,14 +620,14 @@ jobs:
       ######################
       - name: Install Syft (SBOM generator)
         run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Generate SBOM
         run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
 
       - name: Install OSV Scanner
         run: |
-          curl -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b /usr/local/bin
 
       - name: Scan SBOM with OSV
         run: osv-scanner sbom.json --output osv-report.json || true
