@@ -64,7 +64,7 @@ RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
         libc6=2.39-0ubuntu8.6 \
-    && apt-get install -y --only-upgrade gpgv \
+    && apt-get install --no-install-recommends --only-upgrade gpgv -y \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && rm -rf /tmp/* /var/tmp/* \
