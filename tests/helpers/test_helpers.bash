@@ -16,19 +16,27 @@ export NC='\033[0m' # No Color
 
 # Print colored output
 print_success() {
-    echo -e "${GREEN}✅ $1${NC}" >&3
+    local message="$1"
+    echo -e "${GREEN}✅ $message${NC}" >&3
+    return 0
 }
 
 print_error() {
-    echo -e "${RED}❌ $1${NC}" >&3
+    local message="$1"
+    echo -e "${RED}❌ $message${NC}" >&3
+    return 0
 }
 
 print_warning() {
-    echo -e "${YELLOW}⚠️  $1${NC}" >&3
+    local message="$1"
+    echo -e "${YELLOW}⚠️  $message${NC}" >&3
+    return 0
 }
 
 print_info() {
-    echo -e "ℹ️  $1" >&3
+    local message="$1"
+    echo -e "ℹ️  $message" >&3
+    return 0
 }
 
 # Build the test image (only if it doesn't exist)
@@ -43,7 +51,7 @@ build_test_image() {
     docker build -t "$IMAGE_NAME" . >&3 2>&3
     local exit_code=$?
     
-    if [ $exit_code -eq 0 ]; then
+    if [[ $exit_code -eq 0 ]]; then
         print_success "Test image built successfully: $IMAGE_NAME"
     else
         print_error "Failed to build test image: $IMAGE_NAME"
@@ -61,14 +69,14 @@ start_test_container() {
     
     print_info "Starting test container: $CONTAINER_NAME with network mode: $network_mode"
     
-    if [ "$network_mode" = "host" ]; then
+    if [[ "$network_mode" = "host" ]]; then
         docker run -d --name "$CONTAINER_NAME" --network host "$IMAGE_NAME" >&3 2>&3
     else
         docker run -d --name "$CONTAINER_NAME" "$IMAGE_NAME" >&3 2>&3
     fi
     
     local exit_code=$?
-    if [ $exit_code -eq 0 ]; then
+    if [[ $exit_code -eq 0 ]]; then
         # Wait for container to be ready
         sleep 2
         print_success "Container started successfully"
@@ -87,12 +95,13 @@ cleanup_test_container() {
         docker rm "$CONTAINER_NAME" >&3 2>&3
         print_success "Container cleaned up"
     fi
+    return 0
 }
 
 # Remove test image (with safety check)
 cleanup_test_image() {
     # Only cleanup if explicitly requested via environment variable
-    if [ "$CLEANUP_TEST_IMAGE" = "true" ]; then
+    if [[ "$CLEANUP_TEST_IMAGE" = "true" ]]; then
         if docker images --format '{{.Repository}}:{{.Tag}}' | grep -q "^${IMAGE_NAME}$"; then
             print_info "Cleaning up test image: $IMAGE_NAME"
             docker rmi "$IMAGE_NAME" >&3 2>&3
@@ -101,6 +110,7 @@ cleanup_test_image() {
     else
         print_info "Preserving test image: $IMAGE_NAME (set CLEANUP_TEST_IMAGE=true to force cleanup)"
     fi
+    return 0
 }
 
 # Execute hdhomerun_config command in container
@@ -108,13 +118,7 @@ run_hdhomerun_command() {
     local cmd_args="$*"
     print_info "Running: hdhomerun_config $cmd_args"
     docker exec "$CONTAINER_NAME" ./hdhomerun_config $cmd_args
-}
-
-# Execute hdhomerun_config command and capture output
-run_hdhomerun_command_with_output() {
-    local cmd_args="$*"
-    print_info "Running with output capture: hdhomerun_config $cmd_args"
-    docker exec "$CONTAINER_NAME" ./hdhomerun_config $cmd_args 2>&1
+    return $?
 }
 
 # Execute shell command in container
@@ -122,16 +126,19 @@ run_shell_command() {
     local cmd="$*"
     print_info "Running shell command: $cmd"
     docker exec "$CONTAINER_NAME" sh -c "$cmd"
+    return $?
 }
 
 # Check if container is running
 is_container_running() {
     docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"
+    return $?
 }
 
 # Check if container exists (running or stopped)
 container_exists() {
     docker ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"
+    return $?
 }
 
 # Wait for container to be ready
@@ -141,7 +148,7 @@ wait_for_container() {
     
     print_info "Waiting for container to be ready (timeout: ${timeout}s)"
     
-    while [ $count -lt $timeout ]; do
+    while [[ $count -lt $timeout ]]; do
         if is_container_running; then
             # Test if we can execute commands
             if docker exec "$CONTAINER_NAME" echo "test" >/dev/null 2>&1; then
@@ -162,6 +169,7 @@ get_container_logs() {
     if container_exists; then
         print_info "Getting container logs"
         docker logs "$CONTAINER_NAME" 2>&1
+        return $?
     else
         print_error "Container does not exist"
         return 1
@@ -172,12 +180,14 @@ get_container_logs() {
 check_hdhomerun_binary() {
     print_info "Checking hdhomerun_config binary"
     docker exec "$CONTAINER_NAME" test -x ./hdhomerun_config
+    return $?
 }
 
 # Check if libhdhomerun.so library exists
 check_hdhomerun_library() {
     print_info "Checking libhdhomerun.so library"
     docker exec "$CONTAINER_NAME" test -f ./libhdhomerun.so
+    return $?
 }
 
 # Validate hdhomerun_config help output
@@ -209,7 +219,7 @@ validate_discover_output() {
         return 0
     else
         # Empty output is also valid when no devices are present
-        if [ -z "$output" ] || echo "$output" | grep -q "^[[:space:]]*$"; then
+        if [[ -z "$output" ]] || echo "$output" | grep -q "^[[:space:]]*$"; then
             return 0
         fi
     fi
@@ -234,6 +244,7 @@ test_container_network() {
     print_info "Testing container network connectivity"
     # Test basic network functionality
     docker exec "$CONTAINER_NAME" sh -c "ping -c 1 8.8.8.8 >/dev/null 2>&1"
+    return $?
 }
 
 # Get container information
@@ -241,7 +252,9 @@ get_container_info() {
     if container_exists; then
         print_info "Container information:"
         docker inspect "$CONTAINER_NAME" --format '{{.State.Status}}' 2>/dev/null
+        return $?
     fi
+    return 1
 }
 
 # Setup function - called before each test
@@ -260,12 +273,14 @@ setup_test_environment() {
 # Teardown function - called after each test
 teardown_test_environment() {
     cleanup_test_container
+    return 0
 }
 
 # Complete cleanup - removes everything
 complete_cleanup() {
     cleanup_test_container
     cleanup_test_image
+    return 0
 }
 
 # Validate container security settings
@@ -276,7 +291,7 @@ check_container_security() {
     local user_id
     user_id=$(docker exec "$CONTAINER_NAME" id -u 2>/dev/null)
     
-    if [ "$user_id" = "1001" ]; then
+    if [[ "$user_id" = "1001" ]]; then
         print_success "Container running as non-root user (UID: $user_id)"
         return 0
     else
@@ -290,13 +305,14 @@ run_hdhomerun_command_with_output() {
     local args="$*"
     print_info "Running with output capture: hdhomerun_config $args"
     
-    if [ -z "$args" ]; then
+    if [[ -z "$args" ]]; then
         # No arguments - show help
         docker exec "$CONTAINER_NAME" ./hdhomerun_config
     else
         # With arguments
         docker exec "$CONTAINER_NAME" ./hdhomerun_config "$@"
     fi
+    return $?
 }
 
 # Check file permissions
@@ -307,7 +323,7 @@ check_file_permissions() {
     local binary_perms
     binary_perms=$(docker exec "$CONTAINER_NAME" stat -c "%a" ./hdhomerun_config 2>/dev/null)
     
-    if [ "$binary_perms" = "555" ]; then
+    if [[ "$binary_perms" = "555" ]]; then
         print_success "Binary has correct permissions (555)"
     else
         print_error "Binary has incorrect permissions ($binary_perms, expected 555)"
@@ -318,7 +334,7 @@ check_file_permissions() {
     local lib_perms
     lib_perms=$(docker exec "$CONTAINER_NAME" stat -c "%a" ./libhdhomerun.so 2>/dev/null)
     
-    if [ "$lib_perms" = "444" ]; then
+    if [[ "$lib_perms" = "444" ]]; then
         print_success "Library has correct permissions (444)"
         return 0
     else
