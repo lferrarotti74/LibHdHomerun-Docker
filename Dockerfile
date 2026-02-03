@@ -63,8 +63,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
-        libc6=2.39-0ubuntu8.6 \
-    && apt-get install --no-install-recommends --only-upgrade gpgv -y \
+        gpgv \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && rm -rf /tmp/* /var/tmp/* \
