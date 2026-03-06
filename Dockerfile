@@ -13,13 +13,13 @@ RUN groupadd --system --gid 1001 builder \
 
 # Update package lists and install security updates
 # Use --no-install-recommends to minimize attack surface
-# Pin package versions for reproducible builds
+# Install latest available versions for compatibility with newer Ubuntu release
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
-        build-essential=12.10ubuntu1 \
-        ca-certificates=20240203 \
-        git=1:2.43.0-1ubuntu7.3 \
+        build-essential \
+        ca-certificates \
+        git \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
@@ -59,7 +59,7 @@ LABEL org.opencontainers.image.documentation="https://github.com/lferrarotti74/L
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install only essential runtime dependencies with version pinning and create application user
+# Install only essential runtime dependencies and create application user
 RUN apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
