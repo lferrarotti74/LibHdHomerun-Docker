@@ -2,7 +2,7 @@
 # This version implements multiple security best practices and CVE mitigation strategies
 
 # Use Ubuntu LTS for better security support and stability
-FROM ubuntu:24.04 AS stage
+FROM ubuntu:26.04 AS stage
 
 # Set non-interactive frontend to avoid prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
@@ -44,7 +44,7 @@ RUN git clone --depth 1 https://github.com/Silicondust/libhdhomerun.git \
     && strip hdhomerun_config libhdhomerun.so
 
 # Production stage - minimal base image
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 # Security labels for container metadata
 LABEL org.opencontainers.image.title="LibHdHomerun-Docker"
