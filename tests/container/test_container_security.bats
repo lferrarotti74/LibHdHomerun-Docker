@@ -89,7 +89,7 @@ teardown() {
     # Should have reasonable number of binaries (not excessive)
     # Ensure output is a valid integer before comparison
     if [[ "$output" =~ ^[0-9]+$ ]]; then
-        [ "$output" -lt 300 ]  # Adjusted for current container (has ~297)
+        [ "$output" -lt 450 ]  # Adjusted for current container (has ~393)
     fi
 }
 

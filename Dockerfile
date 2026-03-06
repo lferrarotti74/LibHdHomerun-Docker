@@ -99,6 +99,8 @@ USER 1001:1001
 # Set working directory
 WORKDIR /libhdhomerun
 
+# Trigger CI build: 2026-03-06
+
 # Health check for container monitoring (optional - only when devices expected)
 # HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 #     CMD ./hdhomerun_config discover || exit 1

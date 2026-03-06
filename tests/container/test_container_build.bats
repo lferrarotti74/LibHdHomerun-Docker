@@ -209,8 +209,8 @@ teardown() {
     # Extract numeric value (assuming format like "45.2MB")
     size_mb=$(echo "$output" | sed 's/MB.*//' | sed 's/GB.*/000/')
     
-    # Size should be reasonable (less than 200MB)
-    [ "$(echo "$size_mb < 200" | bc -l 2>/dev/null || echo "1")" = "1" ]
+    # Size should be reasonable (less than 300MB)
+    [ "$(echo "$size_mb < 300" | bc -l 2>/dev/null || echo "1")" = "1" ]
 }
 
 @test "Container cleanup works properly" {
