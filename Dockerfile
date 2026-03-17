@@ -2,10 +2,12 @@
 # This version implements multiple security best practices and CVE mitigation strategies
 
 # Use Ubuntu LTS for better security support and stability
+ARG APT_REFRESH=0
 FROM ubuntu:26.04 AS stage
 
 # Set non-interactive frontend to avoid prompts during build
 ENV DEBIAN_FRONTEND=noninteractive
+ARG APT_REFRESH
 
 # Create build user for security (avoid running as root during build)
 RUN groupadd --system --gid 1001 builder \
@@ -14,7 +16,8 @@ RUN groupadd --system --gid 1001 builder \
 # Update package lists and install security updates
 # Use --no-install-recommends to minimize attack surface
 # Install latest available versions for compatibility with newer Ubuntu release
-RUN apt-get update \
+RUN echo "$APT_REFRESH" >/dev/null \
+    && apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
         build-essential \
@@ -43,30 +46,23 @@ RUN git clone --depth 1 https://github.com/Silicondust/libhdhomerun.git \
     && make -j"$JOBS" || (echo "Make failed, trying with single job" && make -j1) \
     && strip hdhomerun_config libhdhomerun.so
 
-# Production stage - minimal base image
-FROM ubuntu:26.04
-
-# Security labels for container metadata
-LABEL org.opencontainers.image.title="LibHdHomerun-Docker"
-LABEL org.opencontainers.image.version="latest"
-LABEL org.opencontainers.image.description="Silicondust library and cli utility for controlling HDHomeRun tuners"
-LABEL org.opencontainers.image.licenses="MIT"
-LABEL org.opencontainers.image.source="https://github.com/lferrarotti74/LibHdHomerun-Docker"
-LABEL org.opencontainers.image.vendor="LibHdHomerun-Docker"
-LABEL org.opencontainers.image.authors="maintainer@example.com"
-LABEL org.opencontainers.image.documentation="https://github.com/lferrarotti74/LibHdHomerun-Docker/blob/main/README.md"
+# Runtime stage - prepared filesystem (will be copied into a scratch image to avoid keeping deleted files in lower layers)
+FROM ubuntu:26.04 AS runtime
+ARG APT_REFRESH
 
 # Set non-interactive frontend
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install only essential runtime dependencies and create application user
-RUN apt-get update \
+RUN echo "$APT_REFRESH" >/dev/null \
+    && apt-get update \
     && apt-get upgrade -y \
     && apt-get install --no-install-recommends -y \
         gpgv \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean \
     && rm -rf /tmp/* /var/tmp/* \
+    && rm -f /usr/bin/pebble /bin/pebble \
     && find /var/log -type f -delete \
     && groupadd --system --gid 1001 libhdhomerun \
     && useradd --system --uid 1001 --gid libhdhomerun \
@@ -77,7 +73,6 @@ RUN apt-get update \
         libhdhomerun
 
 # Copy binaries from build stage with secure ownership and permissions
-# Use root ownership as recommended by SonarQube for security compliance
 COPY --from=stage --chown=root:root --chmod=555 \
     /tmp/build/libhdhomerun/hdhomerun_config \
     /libhdhomerun/hdhomerun_config
@@ -89,6 +84,24 @@ COPY --from=stage --chown=root:root --chmod=444 \
 # Set secure permissions for the application directory
 RUN chown libhdhomerun:libhdhomerun /libhdhomerun \
     && chmod 750 /libhdhomerun
+
+# Final stage - squashed filesystem to ensure deleted base-image artifacts are not retained in the image
+FROM scratch
+
+# Security labels for container metadata
+LABEL org.opencontainers.image.title="LibHdHomerun-Docker"
+LABEL org.opencontainers.image.version="latest"
+LABEL org.opencontainers.image.description="Silicondust library and cli utility for controlling HDHomeRun tuners"
+LABEL org.opencontainers.image.licenses="MIT"
+LABEL org.opencontainers.image.source="https://github.com/lferrarotti74/LibHdHomerun-Docker"
+LABEL org.opencontainers.image.vendor="LibHdHomerun-Docker"
+LABEL org.opencontainers.image.authors="maintainer@example.com"
+LABEL org.opencontainers.image.documentation="https://github.com/lferrarotti74/LibHdHomerun-Docker/blob/main/README.md"
+
+COPY --from=runtime / /
+
+# Set non-interactive frontend
+ENV DEBIAN_FRONTEND=noninteractive
 
 # Add library path for runtime
 ENV LD_LIBRARY_PATH=/libhdhomerun
