@@ -107,20 +107,20 @@ jobs:
           echo "Pulling latest Ubuntu image info..."
           
           # Use docker manifest inspect instead of buildx imagetools
-          NEW_DIGEST=$(docker manifest inspect ubuntu:24.04 | jq -r '.config.digest // .digest // empty')
+          NEW_DIGEST=$(docker manifest inspect ubuntu:26.04 | jq -r '.config.digest // .digest // empty')
           
           # Fallback method if the above doesn't work
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Trying alternative digest retrieval method..."
-            docker pull ubuntu:24.04 > /dev/null 2>&1
-            NEW_DIGEST=$(docker image inspect ubuntu:24.04 --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
+            docker pull ubuntu:26.04 > /dev/null 2>&1
+            NEW_DIGEST=$(docker image inspect ubuntu:26.04 --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
           fi
           
           # Final fallback using docker buildx but with better error handling
           if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
             echo "Using buildx imagetools as fallback..."
             set +e  # Don't exit on error
-            INSPECT_OUTPUT=$(docker buildx imagetools inspect ubuntu:24.04 --format '{{json .}}' 2>/dev/null)
+            INSPECT_OUTPUT=$(docker buildx imagetools inspect ubuntu:26.04 --format '{{json .}}' 2>/dev/null)
             if [ $? -eq 0 ]; then
               NEW_DIGEST=$(echo "$INSPECT_OUTPUT" | jq -r '.manifest.digest // .digest // empty')
             fi
@@ -154,9 +154,10 @@ jobs:
             echo "digest=$NEW_DIGEST" >> $GITHUB_OUTPUT
             echo "update_reason=Ubuntu base image updated (${STORED_DIGEST:0:12}... → ${NEW_DIGEST:0:12}...)" >> $GITHUB_OUTPUT
           else
-            echo "ℹ️ No Ubuntu update detected. Skipping build."
-            echo "should_build=false" >> $GITHUB_OUTPUT
-            echo "update_reason=No Ubuntu updates detected" >> $GITHUB_OUTPUT
+            echo "ℹ️ No Ubuntu digest change detected. Scheduled rebuild will proceed to pick up package/security updates."
+            echo "should_build=true" >> $GITHUB_OUTPUT
+            echo "digest=$NEW_DIGEST" >> $GITHUB_OUTPUT
+            echo "update_reason=Scheduled rebuild (no Ubuntu digest change; refresh apt upgrades)" >> $GITHUB_OUTPUT
           fi
       
       - name: Set default for non-scheduled runs
@@ -326,6 +327,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: mode=max
           sbom: true
+          pull: true
+          build-args: |
+            APT_REFRESH=${{ github.run_id }}
           outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
@@ -433,6 +437,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: mode=max
           sbom: true
+          pull: true
+          build-args: |
+            APT_REFRESH=${{ github.run_id }}
           outputs: type=image,name=${{ env.GHCR_IMAGE }},push-by-digest=true,name-canonical=true,push=${{ github.event_name != 'pull_request' }}
           cache-from: type=local,src=/tmp/.buildx-cache
           cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
