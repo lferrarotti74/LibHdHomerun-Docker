@@ -697,11 +697,15 @@ jobs:
 
       - name: Install OSV Scanner
         env:
-          EXPECTED_HASH: ${{ vars.OSV_INSTALL_SCRIPT_HASH }}
+          OSV_VERSION: "v2.3.6"
+          EXPECTED_HASH: "f689e183ef0d573d2459738aae457d411a26241ae58b5088de1af288b3355604"
         run: |
-          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh -o /tmp/osv-install.sh
-          echo "$EXPECTED_HASH  /tmp/osv-install.sh" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner install script"; exit 1; }
-          sh /tmp/osv-install.sh -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL \
+            "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" \
+            -o /tmp/osv-scanner
+          echo "$EXPECTED_HASH  /tmp/osv-scanner" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner binary"; exit 1; }
+          chmod +x /tmp/osv-scanner
+          mv /tmp/osv-scanner /usr/local/bin/osv-scanner
 
       - name: Scan SBOM with OSV
         run: osv-scanner sbom.json --output osv-report.json || true
