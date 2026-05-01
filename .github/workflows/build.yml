@@ -96,6 +96,7 @@ jobs:
       should_build: ${{ steps.check-image.outputs.should_build || steps.default.outputs.should_build }}
       update_reason: ${{ steps.check-image.outputs.update_reason || steps.default.outputs.update_reason }}
       ubuntu_digest: ${{ steps.check-image.outputs.digest || steps.default.outputs.digest }}
+      alpine_digest: ${{ steps.check-alpine.outputs.alpine_digest }}
     steps:
       - name: Check Ubuntu updates
         id: check-image
@@ -160,6 +161,50 @@ jobs:
             echo "update_reason=Scheduled rebuild (no Ubuntu digest change; refresh apt upgrades)" >> $GITHUB_OUTPUT
           fi
       
+      - name: Check Alpine updates
+        id: check-alpine
+        if: github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && (inputs.force_build == 'false' || inputs.update_digest == 'true'))
+        run: |
+          echo "🔍 Checking Alpine for updates..."
+
+          NEW_DIGEST=$(docker manifest inspect alpine:latest | jq -r '.config.digest // .digest // empty')
+
+          if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
+            echo "Trying alternative digest retrieval method..."
+            docker pull alpine:latest > /dev/null 2>&1
+            NEW_DIGEST=$(docker image inspect alpine:latest --format '{{index .RepoDigests 0}}' | cut -d'@' -f2)
+          fi
+
+          if [ -z "$NEW_DIGEST" ] || [ "$NEW_DIGEST" = "null" ]; then
+            echo "Using buildx imagetools as fallback..."
+            set +e
+            INSPECT_OUTPUT=$(docker buildx imagetools inspect alpine:latest --format '{{json .}}' 2>/dev/null)
+            if [ $? -eq 0 ]; then
+              NEW_DIGEST=$(echo "$INSPECT_OUTPUT" | jq -r '.manifest.digest // .digest // empty')
+            fi
+            set -e
+          fi
+
+          echo "Current Alpine digest: $NEW_DIGEST"
+
+          if [[ ! "$NEW_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
+            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST"
+            echo "alpine_digest=" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          STORED_DIGEST="${{ vars.ALPINE_DIGEST }}"
+          echo "Stored Alpine digest: $STORED_DIGEST"
+          echo "alpine_digest=$NEW_DIGEST" >> $GITHUB_OUTPUT
+
+          if [ -z "$STORED_DIGEST" ] || [ "$STORED_DIGEST" = " " ] || [ "$STORED_DIGEST" = "sha256:initial" ]; then
+            echo "🆕 No previous Alpine digest stored. Initializing."
+          elif [ "$NEW_DIGEST" != "$STORED_DIGEST" ]; then
+            echo "✅ Alpine has been updated! (${STORED_DIGEST:0:12}... → ${NEW_DIGEST:0:12}...)"
+          else
+            echo "ℹ️ No Alpine digest change detected."
+          fi
+
       - name: Set default for non-scheduled runs
         id: default
         if: github.event_name != 'schedule' && (github.event_name != 'workflow_dispatch' || inputs.force_build == 'true')
@@ -624,8 +669,12 @@ jobs:
       # Grype Scan
       ######################
       - name: Install Grype
+        env:
+          EXPECTED_HASH: ${{ vars.GRYPE_INSTALL_SCRIPT_HASH }}
         run: |
-          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh -o /tmp/grype-install.sh
+          echo "$EXPECTED_HASH  /tmp/grype-install.sh" | sha256sum --check --status || { echo "Hash verification failed for Grype install script"; exit 1; }
+          sh /tmp/grype-install.sh -b /usr/local/bin
 
       - name: Run Grype vulnerability scanner
         run: |
@@ -636,15 +685,23 @@ jobs:
       # OSV-Scanner for app dependencies
       ######################
       - name: Install Syft (SBOM generator)
+        env:
+          EXPECTED_HASH: ${{ vars.SYFT_INSTALL_SCRIPT_HASH }}
         run: |
-          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh -o /tmp/syft-install.sh
+          echo "$EXPECTED_HASH  /tmp/syft-install.sh" | sha256sum --check --status || { echo "Hash verification failed for Syft install script"; exit 1; }
+          sh /tmp/syft-install.sh -b /usr/local/bin
 
       - name: Generate SBOM
         run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
 
       - name: Install OSV Scanner
+        env:
+          EXPECTED_HASH: ${{ vars.OSV_INSTALL_SCRIPT_HASH }}
         run: |
-          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh | sh -s -- -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/google/osv-scanner/main/install.sh -o /tmp/osv-install.sh
+          echo "$EXPECTED_HASH  /tmp/osv-install.sh" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner install script"; exit 1; }
+          sh /tmp/osv-install.sh -b /usr/local/bin
 
       - name: Scan SBOM with OSV
         run: osv-scanner sbom.json --output osv-report.json || true
