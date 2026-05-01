@@ -670,11 +670,15 @@ jobs:
       ######################
       - name: Install Grype
         env:
-          EXPECTED_HASH: ${{ vars.GRYPE_INSTALL_SCRIPT_HASH }}
+          GRYPE_VERSION: "v0.111.1"
+          EXPECTED_HASH: "2bc0bc60f1f4e10b0429f5e84517ec4cf0d769d2ef66875c64fc6640e136fd8f"
         run: |
-          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh -o /tmp/grype-install.sh
-          echo "$EXPECTED_HASH  /tmp/grype-install.sh" | sha256sum --check --status || { echo "Hash verification failed for Grype install script"; exit 1; }
-          sh /tmp/grype-install.sh -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL \
+            "https://github.com/anchore/grype/releases/download/${GRYPE_VERSION}/grype_${GRYPE_VERSION#v}_linux_amd64.tar.gz" \
+            -o /tmp/grype.tar.gz
+          echo "$EXPECTED_HASH  /tmp/grype.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Grype binary"; exit 1; }
+          tar -xzf /tmp/grype.tar.gz -C /tmp grype
+          mv /tmp/grype /usr/local/bin/grype
 
       - name: Run Grype vulnerability scanner
         run: |
@@ -686,11 +690,15 @@ jobs:
       ######################
       - name: Install Syft (SBOM generator)
         env:
-          EXPECTED_HASH: ${{ vars.SYFT_INSTALL_SCRIPT_HASH }}
+          SYFT_VERSION: "v1.43.0"
+          EXPECTED_HASH: "7b98251d2d08926bb5d4639b56b1f0996a58ef6667c5830e3fe3cd3ad5f4214a"
         run: |
-          curl --proto "=https" --tlsv1.2 -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh -o /tmp/syft-install.sh
-          echo "$EXPECTED_HASH  /tmp/syft-install.sh" | sha256sum --check --status || { echo "Hash verification failed for Syft install script"; exit 1; }
-          sh /tmp/syft-install.sh -b /usr/local/bin
+          curl --proto "=https" --tlsv1.2 -sSfL \
+            "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz" \
+            -o /tmp/syft.tar.gz
+          echo "$EXPECTED_HASH  /tmp/syft.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Syft binary"; exit 1; }
+          tar -xzf /tmp/syft.tar.gz -C /tmp syft
+          mv /tmp/syft /usr/local/bin/syft
 
       - name: Generate SBOM
         run: syft ${{ env.REGISTRY_IMAGE }}:latest -o json > sbom.json
