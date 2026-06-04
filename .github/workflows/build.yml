@@ -255,7 +255,7 @@ jobs:
     needs: [check-base-image]
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v5.2.0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v5.2.0
         with:
           fetch-depth: 0  # Required for proper blame/coverage tracking
 
@@ -315,7 +315,7 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
           
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Docker meta
         id: meta
@@ -425,7 +425,7 @@ jobs:
           echo "PLATFORM_PAIR=${platform//\//-}" >> $GITHUB_ENV
           
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
 
       - name: Docker meta
         id: meta
@@ -604,7 +604,7 @@ jobs:
     if: always() && (needs.merge.result == 'success' || (needs.build-x86.result == 'success' && needs.build-arm.result == 'success'))
     steps:
       - name: Checkout code
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v5.2.0
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v5.2.0
       
       - name: Login to Docker Hub
         uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
@@ -616,7 +616,7 @@ jobs:
       # Manual Trivy Setup
       ######################
       - name: Setup Trivy
-        uses: aquasecurity/setup-trivy@3fb12ec12f41e471780db15c232d5dd185dcb514 # v0.2.5
+        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.2.5
         with:
           version: 'v0.69.2'  # Use this version as suggested in https://github.com/aquasecurity/setup-trivy/issues/30
 
@@ -722,7 +722,7 @@ jobs:
       # Upload SARIF to GitHub Security
       ######################
       - name: Upload Trivy SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        uses: github/codeql-action/upload-sarif@87557b9c84dde89fdd9b10e88954ac2f4248e463 # v4.36.1
         if: always()
         with:
           sarif_file: trivy-results.sarif
