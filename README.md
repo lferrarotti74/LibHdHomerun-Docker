@@ -99,7 +99,7 @@ services:
 Run with:
 
 ```bash
-docker-compose run --rm hdhomerun-config /libhdhomerun/hdhomerun_config 192.168.1.100 get /sys/version
+docker compose run --rm hdhomerun-config /libhdhomerun/hdhomerun_config 192.168.1.100 get /sys/version
 ```
 
 ### Interactive Usage
