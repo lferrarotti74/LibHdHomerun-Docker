@@ -132,8 +132,8 @@ jobs:
           
           # Validate digest format
           if [[ ! "$NEW_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST"
-            echo "Skipping build due to digest retrieval error."
+            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST" >&2
+            echo "Skipping build due to digest retrieval error." >&2
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "update_reason=Failed to retrieve valid Ubuntu digest" >> $GITHUB_OUTPUT
             exit 0
@@ -188,7 +188,7 @@ jobs:
           echo "Current Alpine digest: $NEW_DIGEST"
 
           if [[ ! "$NEW_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST"
+            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST" >&2
             echo "alpine_digest=" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -676,7 +676,7 @@ jobs:
           curl --proto "=https" --tlsv1.2 -sSfL \
             "https://github.com/anchore/grype/releases/download/${GRYPE_VERSION}/grype_${GRYPE_VERSION#v}_linux_amd64.tar.gz" \
             -o /tmp/grype.tar.gz
-          echo "$EXPECTED_HASH  /tmp/grype.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Grype binary"; exit 1; }
+          echo "$EXPECTED_HASH  /tmp/grype.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Grype binary" >&2; exit 1; }
           tar -xzf /tmp/grype.tar.gz -C /tmp grype
           mv /tmp/grype /usr/local/bin/grype
 
@@ -696,7 +696,7 @@ jobs:
           curl --proto "=https" --tlsv1.2 -sSfL \
             "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz" \
             -o /tmp/syft.tar.gz
-          echo "$EXPECTED_HASH  /tmp/syft.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Syft binary"; exit 1; }
+          echo "$EXPECTED_HASH  /tmp/syft.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Syft binary" >&2; exit 1; }
           tar -xzf /tmp/syft.tar.gz -C /tmp syft
           mv /tmp/syft /usr/local/bin/syft
 
@@ -711,7 +711,7 @@ jobs:
           curl --proto "=https" --tlsv1.2 -sSfL \
             "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" \
             -o /tmp/osv-scanner
-          echo "$EXPECTED_HASH  /tmp/osv-scanner" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner binary"; exit 1; }
+          echo "$EXPECTED_HASH  /tmp/osv-scanner" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner binary" >&2; exit 1; }
           chmod +x /tmp/osv-scanner
           mv /tmp/osv-scanner /usr/local/bin/osv-scanner
 
