@@ -132,8 +132,8 @@ jobs:
           
           # Validate digest format
           if [[ ! "$NEW_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST"
-            echo "Skipping build due to digest retrieval error."
+            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST" >&2
+            echo "Skipping build due to digest retrieval error." >&2
             echo "should_build=false" >> $GITHUB_OUTPUT
             echo "update_reason=Failed to retrieve valid Ubuntu digest" >> $GITHUB_OUTPUT
             exit 0
@@ -188,7 +188,7 @@ jobs:
           echo "Current Alpine digest: $NEW_DIGEST"
 
           if [[ ! "$NEW_DIGEST" =~ ^sha256:[a-f0-9]{64}$ ]]; then
-            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST"
+            echo "⚠️ Warning: Retrieved digest format seems invalid: $NEW_DIGEST" >&2
             echo "alpine_digest=" >> $GITHUB_OUTPUT
             exit 0
           fi
@@ -287,7 +287,7 @@ jobs:
           fi
 
       - name: SonarQube Scan
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v8.5.0
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
@@ -339,14 +339,14 @@ jobs:
 
       - name: Log in to Docker Hub
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -449,14 +449,14 @@ jobs:
 
       - name: Log in to Docker Hub
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -539,13 +539,13 @@ jobs:
           ls -l /tmp/digests
         
       - name: Log in to Docker Hub
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -607,7 +607,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v5.2.0
       
       - name: Login to Docker Hub
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
@@ -676,7 +676,7 @@ jobs:
           curl --proto "=https" --tlsv1.2 -sSfL \
             "https://github.com/anchore/grype/releases/download/${GRYPE_VERSION}/grype_${GRYPE_VERSION#v}_linux_amd64.tar.gz" \
             -o /tmp/grype.tar.gz
-          echo "$EXPECTED_HASH  /tmp/grype.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Grype binary"; exit 1; }
+          echo "$EXPECTED_HASH  /tmp/grype.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Grype binary" >&2; exit 1; }
           tar -xzf /tmp/grype.tar.gz -C /tmp grype
           mv /tmp/grype /usr/local/bin/grype
 
@@ -696,7 +696,7 @@ jobs:
           curl --proto "=https" --tlsv1.2 -sSfL \
             "https://github.com/anchore/syft/releases/download/${SYFT_VERSION}/syft_${SYFT_VERSION#v}_linux_amd64.tar.gz" \
             -o /tmp/syft.tar.gz
-          echo "$EXPECTED_HASH  /tmp/syft.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Syft binary"; exit 1; }
+          echo "$EXPECTED_HASH  /tmp/syft.tar.gz" | sha256sum --check --status || { echo "Hash verification failed for Syft binary" >&2; exit 1; }
           tar -xzf /tmp/syft.tar.gz -C /tmp syft
           mv /tmp/syft /usr/local/bin/syft
 
@@ -711,7 +711,7 @@ jobs:
           curl --proto "=https" --tlsv1.2 -sSfL \
             "https://github.com/google/osv-scanner/releases/download/${OSV_VERSION}/osv-scanner_linux_amd64" \
             -o /tmp/osv-scanner
-          echo "$EXPECTED_HASH  /tmp/osv-scanner" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner binary"; exit 1; }
+          echo "$EXPECTED_HASH  /tmp/osv-scanner" | sha256sum --check --status || { echo "Hash verification failed for OSV Scanner binary" >&2; exit 1; }
           chmod +x /tmp/osv-scanner
           mv /tmp/osv-scanner /usr/local/bin/osv-scanner
 
@@ -722,7 +722,7 @@ jobs:
       # Upload SARIF to GitHub Security
       ######################
       - name: Upload Trivy SARIF to GitHub Security
-        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
         if: always()
         with:
           sarif_file: trivy-results.sarif
